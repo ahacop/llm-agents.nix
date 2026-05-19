@@ -18,17 +18,7 @@ let
     codexRev
     codexSrcHash
     librusty_v8
-    nodeVersionHash
     ;
-
-  # codex-core's js_repl/mod.rs uses include_str!("../../../../node-version.txt")
-  # which in the original codex monorepo resolves to codex-rs/node-version.txt.
-  # Cargo vendoring flattens the workspace structure so this file is missing;
-  # we fetch it from the exact commit that Cargo.lock pins.
-  nodeVersionFile = fetchurl {
-    url = "https://raw.githubusercontent.com/${codexOwner}/codex/${codexRev}/codex-rs/node-version.txt";
-    hash = nodeVersionHash;
-  };
 
   # codex-linux-sandbox's build.rs compiles a vendored copy of bubblewrap (with
   # patches) that lives in codex-rs/vendor/bubblewrap in the main codex repo.
@@ -63,18 +53,6 @@ rustPlatform.buildRustPackage {
   };
 
   inherit cargoHash;
-
-  # Place node-version.txt where include_str!("../../../../node-version.txt") in
-  # codex-core's src/tools/js_repl/mod.rs resolves to.  Newer cargo (≥1.84)
-  # groups git-sourced crates under source-git-N/ subdirectories in the vendor
-  # dir, adding one extra path component; older cargo placed them directly in
-  # the vendor root.  Copy to both locations so the build works with either.
-  preBuild = ''
-    cp ${nodeVersionFile} "$NIX_BUILD_TOP/codex-acp-${version}-vendor/node-version.txt"
-    for d in "$NIX_BUILD_TOP/codex-acp-${version}-vendor"/source-git-*/; do
-      [ -d "$d" ] && cp ${nodeVersionFile} "$d/node-version.txt"
-    done
-  '';
 
   env = {
     RUSTY_V8_ARCHIVE = librustyV8;

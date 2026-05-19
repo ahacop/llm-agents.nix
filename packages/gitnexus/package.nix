@@ -12,33 +12,36 @@ buildNpmPackage (finalAttrs: {
   npmDepsFetcherVersion = 2;
   forceGitDeps = true;
   pname = "gitnexus";
-  version = "1.6.3";
+  version = "1.6.5";
 
   src = fetchFromGitHub {
     owner = "abhigyanpatwari";
     repo = "GitNexus";
     tag = "v${finalAttrs.version}";
-    hash = "sha256-Y8JBDYJPwddK5e+U8NBlKQ9211yzVmZmNVxOaMhyl/k=";
+    hash = "sha256-bNV6yhbMbCYmkSu67dEF3Pm4amgzXNopWk+G2fmkdpI=";
   };
 
   sourceRoot = "source/gitnexus";
 
-  # Upstream: https://github.com/abhigyanpatwari/GitNexus/pull/589
   patches = [ ./system-onnxruntime-node.patch ];
-
-  postPatch = ''
-    # scripts/build.js shells out to `npx tsc`, which tries to hit the
-    # registry in the sandbox. typescript is already on PATH via
-    # nativeBuildInputs, so call it directly.
-    substituteInPlace scripts/build.js \
-      --replace-fail "'npx tsc'" "'tsc'"
-  '';
 
   postUnpack = ''
     chmod -R u+w source/gitnexus-shared
+    # build.js runs `npm ci && npm run build` inside gitnexus-web (needs
+    # network and a separate lockfile). Drop its package.json so the
+    # build script skips the web UI entirely.
+    chmod -R u+w source/gitnexus-web
+    rm -f source/gitnexus-web/package.json
   '';
 
-  npmDepsHash = "sha256-JpNOQCPty8NuUu/hr7BWZyUgc3PdVDyooFRo30tbE/w=";
+  # build.js invokes a cwd-relative node_modules/.bin/tsc which does not exist
+  # in gitnexus-shared; use the tsc from nativeBuildInputs on PATH instead.
+  postPatch = ''
+    substituteInPlace scripts/build.js \
+      --replace-fail "path.join('node_modules', '.bin', 'tsc')" "'tsc'"
+  '';
+
+  npmDepsHash = "sha256-BRvS1npNezOKThqQcHa1YKOSNQa5dL582/JszB6vdRI=";
   makeCacheWritable = true;
 
   npmFlags = [ "--ignore-scripts" ];

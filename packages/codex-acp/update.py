@@ -28,7 +28,7 @@ from updater import (
     should_update,
 )
 from updater.hash import DUMMY_SHA256_HASH
-from updater.nix import NixCommandError, nix_store_prefetch_file
+from updater.nix import NixCommandError
 
 SCRIPT_DIR = Path(__file__).parent
 HASHES_FILE = SCRIPT_DIR / "hashes.json"
@@ -125,12 +125,6 @@ def main() -> None:
     codex_src_hash = calculate_url_hash(codex_src_url, unpack=True)
     print(f"  codexSrcHash: {codex_src_hash}")
 
-    # Calculate node-version.txt hash
-    node_version_url = f"https://raw.githubusercontent.com/{codex_owner}/codex/{codex_rev}/codex-rs/node-version.txt"
-    print("Calculating node-version.txt hash...")
-    node_version_hash = nix_store_prefetch_file(node_version_url)
-    print(f"  nodeVersionHash: {node_version_hash}")
-
     # Save with dummy cargoHash to calculate the real one
     data = {
         "version": latest,
@@ -140,7 +134,6 @@ def main() -> None:
         "codexRev": codex_rev,
         "codexSrcHash": codex_src_hash,
         "librusty_v8": librusty_v8_pins(v8_version, data.get("librusty_v8")),
-        "nodeVersionHash": node_version_hash,
     }
     save_hashes(HASHES_FILE, data)
 

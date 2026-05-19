@@ -1,31 +1,11 @@
-diff --git a/README.md b/README.md
-index ed27bf7..210abd4 100644
---- a/README.md
-+++ b/README.md
-@@ -190,6 +190,15 @@ gitnexus analyze . --embeddings
- 
- Works with Infinity, vLLM, TEI, llama.cpp, Ollama, LM Studio, or OpenAI. When unset, local embeddings are used unchanged.
- 
-+## System ONNX Runtime Binding (Advanced)
-+
-+If your environment provides a system-built onnxruntime-node binding (for example, Nix),
-+you can direct GitNexus to use it instead of the package's bundled binary:
-+
-+```bash
-+export GITNEXUS_ORT_BINDING_PATH=/absolute/path/to/onnxruntime_binding.node
-+```
-+
- ## Multi-Repo Support
- 
- GitNexus supports indexing multiple repositories. Each `gitnexus analyze` registers the repo in a global registry (`~/.gitnexus/registry.json`). The MCP server serves all indexed repos automatically.
-diff --git a/src/core/embeddings/embedder.ts b/src/core/embeddings/embedder.ts
-index d27718c..652f275 100644
---- a/src/core/embeddings/embedder.ts
-+++ b/src/core/embeddings/embedder.ts
-@@ -15,12 +15,31 @@ if (!process.env.ORT_LOG_LEVEL) {
- }
- 
- import { pipeline, env, type FeatureExtractionPipeline } from '@huggingface/transformers';
+diff --git gitnexus/src/core/embeddings/embedder.ts gitnexus/src/core/embeddings/embedder.ts
+index 72ddcbd7..9516db3c 100644
+--- gitnexus/src/core/embeddings/embedder.ts
++++ gitnexus/src/core/embeddings/embedder.ts
+@@ -20,12 +20,31 @@ import {
+   type FeatureExtractionPipeline,
+   type ProgressInfo,
+ } from '@huggingface/transformers';
 -import { existsSync } from 'fs';
 +import { existsSync, mkdirSync } from 'fs';
  import { execFileSync } from 'child_process';
@@ -52,24 +32,73 @@ index d27718c..652f275 100644
 +    // If cache setup fails, fall back to transformers.js defaults.
 +  }
 +};
+ import { resolveEmbeddingConfig } from './config.js';
+ import { applyHfEnvOverrides, isHfDownloadFailure, withHfDownloadRetry } from './hf-env.js';
+ import { logger } from '../logger.js';
+@@ -145,6 +164,9 @@ export const initEmbedder = async (
+   }
  
- /**
-  * Check whether the onnxruntime-node package that @huggingface/transformers
-@@ -136,6 +155,9 @@ export const initEmbedder = async (
+   // If already initializing, wait for that promise
++  applyOnnxruntimeNodeBindingOverride();
++  configureTransformersCache();
++
+   if (isInitializing && initPromise) {
+     return initPromise;
+   }
+diff --git gitnexus/src/mcp/core/embedder.ts gitnexus/src/mcp/core/embedder.ts
+index f529f280..00d2c737 100644
+--- gitnexus/src/mcp/core/embedder.ts
++++ gitnexus/src/mcp/core/embedder.ts
+@@ -6,6 +6,8 @@
+  */
+ 
+ import { pipeline, env, type FeatureExtractionPipeline } from '@huggingface/transformers';
++import { mkdirSync } from 'fs';
++import { join } from 'path';
+ import {
+   isHttpMode,
+   getHttpDimensions,
+@@ -18,6 +20,25 @@ import {
+   withHfDownloadRetry,
+ } from '../../core/embeddings/hf-env.js';
+ import { silenceStdout, restoreStdout, realStderrWrite } from '../../core/lbug/pool-adapter.js';
++import { applyOnnxruntimeNodeBindingOverride } from '../../core/embeddings/onnxruntime-node-loader.js';
++
++const configureTransformersCache = () => {
++  const cacheRoot =
++    process.env.GITNEXUS_CACHE_DIR ??
++    process.env.XDG_CACHE_HOME ??
++    (process.env.HOME ? join(process.env.HOME, '.cache') : null);
++
++  if (!cacheRoot) return;
++
++  const cacheDir = join(cacheRoot, 'gitnexus', 'transformers');
++  try {
++    mkdirSync(cacheDir, { recursive: true });
++    env.cacheDir = cacheDir;
++    env.useFSCache = true;
++  } catch {
++    // If cache setup fails, fall back to transformers.js defaults.
++  }
++};
+ 
+ import { logger } from '../../core/logger.js';
+ // Model config
+@@ -40,6 +61,9 @@ export const initEmbedder = async (): Promise<FeatureExtractionPipeline> => {
      return embedderInstance;
    }
  
 +  applyOnnxruntimeNodeBindingOverride();
 +  configureTransformersCache();
 +
-   // If already initializing, wait for that promise
    if (isInitializing && initPromise) {
      return initPromise;
-diff --git a/src/core/embeddings/onnxruntime-node-loader.ts b/src/core/embeddings/onnxruntime-node-loader.ts
+   }
+diff --git gitnexus/src/core/embeddings/onnxruntime-node-loader.ts gitnexus/src/core/embeddings/onnxruntime-node-loader.ts
 new file mode 100644
-index 0000000..252064f
+index 00000000..252064f0
 --- /dev/null
-+++ b/src/core/embeddings/onnxruntime-node-loader.ts
++++ gitnexus/src/core/embeddings/onnxruntime-node-loader.ts
 @@ -0,0 +1,53 @@
 +import Module from 'module';
 +import { existsSync } from 'fs';
@@ -124,51 +153,3 @@ index 0000000..252064f
 +    return originalResolve(request, parent, isMain, options);
 +  };
 +};
-diff --git a/src/mcp/core/embedder.ts b/src/mcp/core/embedder.ts
-index 592c2bb..7ddf840 100644
---- a/src/mcp/core/embedder.ts
-+++ b/src/mcp/core/embedder.ts
-@@ -6,12 +6,33 @@
-  */
- 
- import { pipeline, env, type FeatureExtractionPipeline } from '@huggingface/transformers';
-+import { mkdirSync } from 'fs';
-+import { join } from 'path';
- import {
-   isHttpMode,
-   getHttpDimensions,
-   httpEmbedQuery,
- } from '../../core/embeddings/http-client.js';
- import { silenceStdout, restoreStdout, realStderrWrite } from '../../core/lbug/pool-adapter.js';
-+import { applyOnnxruntimeNodeBindingOverride } from '../../core/embeddings/onnxruntime-node-loader.js';
-+
-+const configureTransformersCache = () => {
-+  const cacheRoot =
-+    process.env.GITNEXUS_CACHE_DIR ??
-+    process.env.XDG_CACHE_HOME ??
-+    (process.env.HOME ? join(process.env.HOME, '.cache') : null);
-+
-+  if (!cacheRoot) return;
-+
-+  const cacheDir = join(cacheRoot, 'gitnexus', 'transformers');
-+  try {
-+    mkdirSync(cacheDir, { recursive: true });
-+    env.cacheDir = cacheDir;
-+    env.useFSCache = true;
-+  } catch {
-+    // If cache setup fails, fall back to transformers.js defaults.
-+  }
-+};
- 
- // Model config
- const MODEL_ID = 'Snowflake/snowflake-arctic-embed-xs';
-@@ -33,6 +54,9 @@ export const initEmbedder = async (): Promise<FeatureExtractionPipeline> => {
-     return embedderInstance;
-   }
- 
-+  applyOnnxruntimeNodeBindingOverride();
-+  configureTransformersCache();
-+
-   if (isInitializing && initPromise) {
-     return initPromise;
-   }
