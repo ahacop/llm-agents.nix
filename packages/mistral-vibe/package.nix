@@ -217,23 +217,10 @@ python.pkgs.buildPythonApplication rec {
     zstandard
   ];
 
-  # Relax version constraints - nixpkgs versions are slightly older but compatible.
-  # NOTE: do NOT relax opentelemetry-* here; those constraints encode real API
-  # requirements (see issue #3668) and are satisfied by the overrides above.
-  pythonRelaxDeps = [
-    "agent-client-protocol"
-    "certifi"
-    "cryptography"
-    "gitpython"
-    "giturlparse"
-    "keyring"
-    "mistralai"
-    "pydantic"
-    "pydantic-settings"
-    "pyyaml"
-    "watchfiles"
-    "zstandard"
-  ];
+  # Upstream 2.10.0 pins the full transitive dependency closure with `==` in
+  # pyproject.toml. Relax everything; the opentelemetry API requirements
+  # (see issue #3668) are still met by the version overrides above.
+  pythonRelaxDeps = true;
 
   pythonImportsCheck = [ "vibe" ];
 
