@@ -8,13 +8,13 @@
 }:
 pkgs.buildNpmPackage rec {
   pname = "reasonix";
-  version = "0.49.0";
+  version = "0.45.1";
 
   src = pkgs.fetchFromGitHub {
     owner = "esengine";
     repo = "DeepSeek-Reasonix";
     rev = "v${version}";
-    hash = "sha256-msfAkLH/yReZiun6MCqNxcFRfnlVdWmHo6bofz1FBSA=";
+    hash = "sha256-aVu6LcgL8aibcT8bJOPHriMcADA6/+gBP1e5FXWsoEQ=";
   };
 
   npmDeps = pkgs.importNpmLock {
