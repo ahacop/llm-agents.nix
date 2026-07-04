@@ -62,13 +62,18 @@ buildNpmPackage (finalAttrs: {
 
     mkdir -p $out/bin $out/share/qwen-code
     cp -r dist/* $out/share/qwen-code/
+    # The bundled dist/cli.js has no shebang; upstream ships a bin wrapper
+    # (scripts/cli-entry.js) that relaunches cli.js with node --expose-gc and
+    # reads package.json for the reported version. Install both next to cli.js.
+    cp scripts/cli-entry.js $out/share/qwen-code/cli-entry.js
+    cp package.json $out/share/qwen-code/package.json
     # Install production dependencies only
     npm prune --production
     cp -r node_modules $out/share/qwen-code/
     # Remove broken symlinks that cause issues in Nix environment
     find $out/share/qwen-code/node_modules -type l -delete || true
     patchShebangs $out/share/qwen-code
-    ln -s $out/share/qwen-code/cli.js $out/bin/qwen
+    ln -s $out/share/qwen-code/cli-entry.js $out/bin/qwen
 
     runHook postInstall
   '';
