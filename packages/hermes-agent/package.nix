@@ -318,6 +318,16 @@ python3.pkgs.buildPythonApplication {
     "--set"
     "HERMES_NODE"
     "${nodejs}/bin/node"
+    # Bundled skills live outside the Python package tree (setup.py
+    # data_files). setuptools drops setup.py data_files when pyproject.toml
+    # declares [tool.setuptools.data-files], so postInstall copies them
+    # manually and the wrapper points hermes at the installed copy.
+    "--set"
+    "HERMES_BUNDLED_SKILLS"
+    "${placeholder "out"}/share/hermes/skills"
+    "--set"
+    "HERMES_OPTIONAL_SKILLS"
+    "${placeholder "out"}/share/hermes/optional-skills"
     # Disable runtime pip installs; absent extras disable cleanly.
     "--set"
     "HERMES_DISABLE_LAZY_INSTALLS"
@@ -328,6 +338,18 @@ python3.pkgs.buildPythonApplication {
     ":"
     "${nodejs}/bin"
   ];
+
+  # setup.py declares skills/ and optional-skills/ as data_files, but
+  # pyproject.toml's [tool.setuptools.data-files] takes precedence and
+  # silently drops them from the wheel. Copy the trees from source so
+  # get_bundled_skills_dir / get_optional_skills_dir (hermes_constants.py)
+  # resolve via the HERMES_BUNDLED_SKILLS / HERMES_OPTIONAL_SKILLS env vars
+  # set in makeWrapperArgs.
+  postInstall = ''
+    mkdir -p $out/share/hermes
+    cp -r ${src}/skills $out/share/hermes/skills
+    cp -r ${src}/optional-skills $out/share/hermes/optional-skills
+  '';
 
   pythonRelaxDeps = [
     "openai"
@@ -373,8 +395,12 @@ python3.pkgs.buildPythonApplication {
     grep -q HERMES_WEB_DIST $out/bin/hermes
     grep -q HERMES_PYTHON $out/bin/hermes
     grep -q HERMES_PYTHON_SRC_ROOT $out/bin/hermes
+    grep -q HERMES_BUNDLED_SKILLS $out/bin/hermes
+    grep -q HERMES_OPTIONAL_SKILLS $out/bin/hermes
     test -f ${hermes-frontend}/lib/hermes-tui/dist/entry.js
     test -f ${hermes-frontend}/share/hermes-web/index.html
+    test -d $out/share/hermes/skills
+    test -d $out/share/hermes/optional-skills
     ${pythonEnv}/bin/python3 -c 'import dotenv, tenacity, openai'
   ''
   + lib.optionalString stdenv.hostPlatform.isLinux ''
