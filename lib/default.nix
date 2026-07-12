@@ -164,6 +164,11 @@ inputs.nixpkgs.lib.extend (
         githubId = 13460388;
         name = "Hobr";
       };
+      mnixry = {
+        github = "mnixry";
+        githubId = 32300164;
+        name = "Mix";
+      };
     };
   }
 )

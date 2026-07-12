@@ -221,6 +221,16 @@ Nix packages for AI coding agents and development tools. Automatically updated d
 
 </details>
 <details>
+<summary><strong>kimi-code</strong> - The Starting Point for Next-Gen Agents</summary>
+
+- **Source**: source
+- **License**: MIT
+- **Homepage**: https://github.com/MoonshotAI/kimi-code
+- **Usage**: `nix run github:numtide/llm-agents.nix#kimi-code -- --help`
+- **Nix**: [packages/kimi-code/package.nix](packages/kimi-code/package.nix)
+
+</details>
+<details>
 <summary><strong>letta-code</strong> - Memory-first coding agent that learns and evolves across sessions</summary>
 
 - **Source**: bytecode
