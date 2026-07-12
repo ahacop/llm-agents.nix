@@ -6,7 +6,9 @@
   fetchPnpmDeps,
   fd,
   makeWrapper,
+  node-gyp,
   nodejs,
+  python3,
   pnpm_10,
   pnpmConfigHook,
   ripgrep,
@@ -62,6 +64,11 @@ stdenv.mkDerivation (finalAttrs: {
     nodejs
     pnpm
     (pnpmConfigHook.override { inherit pnpm; })
+  ]
+  ++ lib.optionals stdenv.hostPlatform.isLinux [
+    # to compile node-pty (see installPhase)
+    node-gyp
+    python3
   ];
 
   buildPhase = ''
@@ -77,6 +84,17 @@ stdenv.mkDerivation (finalAttrs: {
 
     pnpm config set inject-workspace-packages true
     pnpm --filter @moonshot-ai/kimi-code --prod --ignore-scripts deploy $out/lib/kimi-code
+
+    ${lib.optionalString stdenv.hostPlatform.isLinux ''
+      # node-pty ships prebuilds only for darwin/win32 and the deploy above
+      # skips install scripts, so compile the Linux addon here.
+      pushd $out/lib/kimi-code/node_modules/.pnpm/node-pty@*/node_modules/node-pty
+      node-gyp rebuild --nodedir=${nodejs}
+      # keep only the compiled addon
+      find build -mindepth 1 -maxdepth 1 ! -name Release -exec rm -rf {} +
+      find build/Release -mindepth 1 ! -name '*.node' -exec rm -rf {} +
+      popd
+    ''}
 
     mkdir -p $out/bin
     makeWrapper ${nodejs}/bin/node $out/bin/kimi \
