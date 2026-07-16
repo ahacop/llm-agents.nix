@@ -13,7 +13,6 @@
 let
   versionData = lib.importJSON ./hashes.json;
   version = versionData.version;
-  packageRoot = "$out/lib/node_modules/@earendil-works/pi-coding-agent";
 
   # Create a source with package-lock.json included
   srcWithLock = runCommand "pi-src-with-lock" { } ''
