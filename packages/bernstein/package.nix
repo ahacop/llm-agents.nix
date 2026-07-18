@@ -85,6 +85,7 @@ python.pkgs.buildPythonApplication rec {
 
   dependencies = with python.pkgs; [
     asn1crypto
+    cbor2
     click
     cryptography
     defusedxml
@@ -119,6 +120,7 @@ python.pkgs.buildPythonApplication rec {
     "click"
     "cryptography"
     "idna"
+    "mcp"
     "openai"
     "opentelemetry-api"
     "opentelemetry-exporter-otlp"
