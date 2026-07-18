@@ -42,11 +42,22 @@ let
       pnpmConfigHook
     ];
 
+    # Restrict the install to the dashboard workspace: the full workspace
+    # install (1200 packages) gets OOM-killed on the aarch64-darwin builders.
+    pnpmWorkspaces = [ "dashboard" ];
+
     pnpmDeps = fetchPnpmDeps {
       pname = "${pname}-dashboard";
       inherit version src;
       pnpm = pnpm_11;
-      hash = "sha256-uY+Zm/LtNn3+qf4B/p3/nzn5Emj6C7+S8X4q8wr+Ow0=";
+      pnpmWorkspaces = [ "dashboard" ];
+      # The 0.32.2 lockfile makes pnpm exceed the darwin builders' memory
+      # budget and get SIGKILLed; cap the heap and unpack concurrency.
+      prePnpmInstall = ''
+        export NODE_OPTIONS=--max-old-space-size=2048
+      '';
+      pnpmInstallFlags = [ "--child-concurrency=2" ];
+      hash = "sha256-tkEhkGO5/JTkzySDEsTmjr5+SEXzk8V0217iQhFhfCw=";
       fetcherVersion = 4;
     };
 
