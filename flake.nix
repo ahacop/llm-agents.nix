@@ -78,6 +78,9 @@
               platformSource = import ./lib/platform-source.nix {
                 inherit (pkgs) stdenv fetchurl;
               };
+              # bun2nix builder set (hook, fetchBunDeps, ...); the `bun2nix`
+              # scope attribute is the CLI package.
+              bun2nixLib = (pkgs.extend inputs.bun2nix.overlays.default).bun2nix;
             }
             // lib.genAttrs packageNames (
               name:
